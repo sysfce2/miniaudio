@@ -1,3 +1,96 @@
+v0.11.25 - 2026-03-04
+=====================
+* Bug fixes to the WAV decoder.
+* Fixed warnings with the Emscripten build relating to the renaming of of `__EMSCRIPTEN_major/minor/tiny__` macros.
+* Win32: Fixed an error with runtime linking on the UWP build. This is actually a non issue in practice because it would require miniaudio to pass in a DLL name of longer than 2048 characters which it never does.
+
+
+v0.11.24 - 2026-01-17
+=====================
+* Fixed a possible glitch when processing the audio of a `ma_sound` when doing resampling.
+* Fixed a possible crash in the node graph relating to scheduled starts and stops.
+* Fixed a bug where MA_NO_DECODING would disable the WAV encoder.
+* Fixed a pthread compatibility issue, particularly with Android.
+* Fixed a possible crash in the resource manager.
+* Fixed a possible double-uninit error when a decoder fails to initialize.
+* Fixed a compilation error with the MSVC Aarch64 build.
+* Addressed a few errors found through static analysis, particularly around possible null pointer dereferences.
+* `ma_sound_is_playing()` will now correctly return false when called from inside the end callback of a sound.
+* Miscellaneous compiler compatibility and warning fixes.
+* PulseAudio: Fix a resource leak when a context fails to connect.
+* Web: Fixed an error when uninitializing a context.
+
+
+v0.11.23 - 2025-09-11
+=====================
+* Fixed an error in `ma_channel_map_to_string()` where the output string is not null terminated correctly.
+* Fixed an error with logging due to mishandling of va_list.
+* Fixed some errors when compiling with `MA_NO_RUNTIME_LINKING`.
+* Fixed an error with `ma_sound` initialization where the initial loop points are not set correctly.
+* Fixed an alignment error with the ring buffer.
+* Fixed a memory leak in the resource manager when opening a file fails.
+* Fixed an assertion failure in the resource manager when opening a file fails.
+* Fixed a compilation warning relating to `MA_FALLTHROUGH`
+* Fixed an undefined behavior error in the s16 to s32 conversion routine.
+* Fixed an undefined behavior error relating to MurmurHash3.
+* Fixed an undefined behavior error with the LCG random number generator.
+* Fixed a compilation error with `MA_NO_SSE2`.
+* Fixed some unused function warnings.
+* Fixed a rare, but technically possible division by zero error.
+* Some const correctness fixes for `ma_sound`.
+* Improved compatibility with old versions of GCC.
+* Miscellaneous documentation fixes.
+* WAV, FLAC and MP3 decoders have been brought up to date with dr_libs. Of particular note, this should fix some long outstanding bugs with MP3 due to metadata not being handled correctly.
+* POSIX: Added a fallback for when creation of a real-time thread fails. This fallback can be disabled with `MA_NO_PTHREAD_REALTIME_PRIORITY_FALLBACK` if you need an explicit failure.
+* POSIX: pthread.h is no longer included when `MA_NO_THREADING` is defined.
+* WASAPI: Improved handling of COM initialization and shutdown to make it a bit more robust.
+* WASAPI: Fix an error due to a missing struct member.
+* PulseAudio: Fixed a crash when requesting a channel count greater than 32.
+* AAudio: Fixed a crash when uninitializing the device while in the middle of rerouting.
+
+
+v0.11.22 - 2025-02-24
+=====================
+* Starting from version 0.12, miniaudio will be switching to a split .c/h pair, away from a single header. In preparation for this, a file named "miniaudio.c" has been added to repository. Currently this is just a simple wrapper around miniaudio.h and `MINIAUDIO_IMPLEMENTATION`. Nothing has changed in miniaudio.h, however when version 0.12 is released you will need to use miniaudio.c for the implementation. It's recommended you start the transition away from `MINIAUDIO_IMPLEMENTATION` and towards miniaudio.c. If you want to keep building your project as a single translation unit, you can do `#include "miniaudio.c"` which will continue to be supported with version 0.12 and beyond.
+* In the extras folder, the `miniaudio_libvorbis.h` and `miniaudio_libopus.h` files have been deprecated. They have been replaced with versions in the `extras/decoders` folder. They are now split into a separate .c and .h files. The old files still exist for compatibility, but you need to transition over to the new versions. The transition should be trivial. Compile the .c files like a normal source file, and include the .h file like a normal header.
+* Add `MA_SOUND_FLAG_LOOPING` and `MA_RESOURCE_MANAGER_DATA_SOURCE_FLAG_LOOPING` flags. These can be used to initialize sounds and resource managed data sources to loop by default. This is the recommended way to enable looping for streams. The `isLooping` config option in `ma_sound_config` and `ma_resource_manager_data_source_config` has been deprecated. If you are using those, you should switch to the new flag or else you'll get compiler errors when upgrading to a future version.
+* `ma_rb_commit_read()`, `ma_rb_commit_write()`, `ma_pcm_rb_commit_read()` and `ma_pcm_rb_commit_write()` no longer return `MA_AT_END`. The reason for this change is that there's no real notion of an "end" in a ring buffer which makes this result code confusing. In addition, it's possible for these functions to return something other than `MA_SUCCESS` even when the operation completed successfully which adds to the confusion. The correct way to check if there is any more room in the ring buffer is to look at the frame count returned by `*rb_acquire_read/write()`.
+* The `ma_pcm_rb` data source implementation has been modified to pad output data with silence if there is not enough data in the ring buffer to fill the request. What this means is for an `ma_pcm_rb`, `ma_data_source_read_pcm_frames()` should no longer return a frame count of less than what you requested, and will therefore never return `MA_AT_END` which does not make sense for a ring buffer since it does not have the notion of an end. This change should make it much easier to use a ring buffer as the data source for a `ma_sound`.
+* There has been a minor change to `ma_calculate_buffer_size_in_milliseconds_from_frames()` to have it return a value rounded up to the nearest integer.
+* When initialization of a decoder fails, it will now return the first error code encountered rather than always returning `MA_NO_BACKEND` regardless of the error.
+* Add `ma_device_id_equal()` for comparing device IDs.
+* Add support for `MA_NO_RUNTIME_LINKING` to the AAudio backend.
+* Fix a buffer overrun bug with `ma_sound` processing.
+* Fix a bug relating to node detachment.
+* Fix a bug where amplification with `ma_device_set_master_volume()` does not work.
+* Fix a bug where sounds loaded with `MA_SOUND_FLAG_DECODE` do not loop.
+* Fix a bug with initialization of the band pass biquad filter.
+* Fix a bug where a device would output distorted audio if initialized without a data callback.
+* Fix various compiler and static analysis warnings.
+* Various documentation updates.
+* WASAPI: Fix an error when stopping the device. The "Failed to reset internal playback device." error should be significantly reduced in frequency.
+* WASAPI: Fix an error when stopping the device where it was possible miniaudio would not wait for the device to be drained due to an error with the wait time calculation.
+* WASAPI: Fix a COM related crash with device rerouting.
+* DirectSound: Add support for specifying an explicit window handle for SetCooperativeLevel().
+* ALSA: Fix a bug where a playback device can fail to start.
+* ALSA: Fix some warnings relating to unhandled return value of `read()`.
+* Web: Fix ScriptProcessorNode path when compiling with `--closure=1`. Note that the Audio Worklets path is not currently working due to the callback specified in `emscripten_create_wasm_audio_worklet_processor_async` never getting fired.
+* Web: Fix an error with the unlocked notification when compiling as C++.
+* Web: Fix a JavaScript error when initializing and then uninitializing a context before any interactivity.
+* Web: miniaudio will now enable threading when the `-pthread` command line flag is used.
+* Web: Infrastructure has been added to support configurable buffer sizes. In practice this is still restricted to 128 frames, but once Emscripten adds full support for configuration of the buffer size, it will be trivial to add support to miniaudio.
+* AAudio: Fix some crashes relating to stream rerouting.
+* AAudio: Fix an error where the device is silenced after rerouting. With this change, miniaudio will no longer give AAudio a hint to use your supplied period size which will therefore result in AAudio using its default latency configuration. If you want AAudio to try to use the period size you supply in the device config, which is the old behaviour, set `aaudio.allowSetBufferCapacity` to true in the device config. Note, however, if you do this you may end up with errors when rerouting between devices.
+* AAudio: The default minimum SDK version has been increased from 26 to 27 when enabling AAudio. If you need to support version 26, you can use `#define MA_AAUDIO_MIN_ANDROID_SDK_VERSION 26`.
+* AAudio: Fix ma_device_get_info() implementation.
+* AAudio: Fix an error when an assertion can trigger due to AAudio reporting a frame count of 0.
+* PulseAudio: Add a configuration option to control the PulseAudio-defined channel map to use.
+* PulseAudio: Fix an extremely unlikely race condition with device initialization.
+* PulseAudio: Fix a bug with the miniaudio-generated stream name. Previously this would create names like "miniaudi0" when it was supposed to be "miniaudio:0".
+* iOS: Fix an error when trying to capture audio from the simulator with iOS version 16 and newer.
+* sndio: Fix a crash with device uninitialization.
+
+
 v0.11.21 - 2023-11-15
 =====================
 * Add new ma_device_notification_type_unlocked notification. This is used on Web and will be fired after the user has performed a gesture and thus unlocked the ability to play audio.
@@ -170,7 +263,7 @@ v0.11.7 - 2022-02-06
 
 v0.11.6 - 2022-01-22
 ====================
-* WASAPI: Fix a bug where the device is not stopped when an error occurrs when writing to a playback device.
+* WASAPI: Fix a bug where the device is not stopped when an error occurs when writing to a playback device.
 * PulseAudio: Fix a rare crash due to a division by zero.
 * The node graph can now be used as a node. This allows node graphs to be connected to other node graphs.
 * Fix a crash with high-pass and band-pass filters.
@@ -262,7 +355,7 @@ v0.11.0 - 2021-12-18
   - Add support for disabling denormals on the audio thread.
   - Add a delay/echo effect called ma_delay.
   - Add a stereo pan effect called ma_panner.
-  - Add a spataializer effect called ma_spatializer.
+  - Add a spatializer effect called ma_spatializer.
   - Add support for amplification for device master volume.
   - Remove dependency on MA_MAX_CHANNELS from filters and data conversion.
   - Increase MA_MAX_CHANNELS from 32 to 254.
@@ -464,7 +557,7 @@ v0.10.26 - 2020-11-24
 
 v0.10.25 - 2020-11-15
   - PulseAudio: Fix a bug where the stop callback isn't fired.
-  - WebAudio: Fix an error that occurs when Emscripten increases the size of it's heap.
+  - WebAudio: Fix an error that occurs when Emscripten increases the size of its heap.
   - Custom Backends: Change the onContextInit and onDeviceInit callbacks to take a parameter which is a pointer to the config that was
     passed into ma_context_init() and ma_device_init(). This replaces the deviceType parameter of onDeviceInit.
   - Fix compilation warnings on older versions of GCC.
@@ -848,7 +941,7 @@ v0.9 - 2019-03-06
   - API CHANGE: Add log level to the log callback. New signature:
     - void on_log(ma_context* pContext, ma_device* pDevice, ma_uint32 logLevel, const char* message)
   - API CHANGE: Changes to result codes. Constants have changed and unused codes have been removed. If you're
-    a binding mainainer you will need to update your result code constants.
+    a binding maintainer you will need to update your result code constants.
   - API CHANGE: Change the order of the ma_backend enums to priority order. If you are a binding maintainer, you
     will need to update.
   - API CHANGE: Rename mal_dsp to ma_pcm_converter. All functions have been renamed from mal_dsp_*() to
@@ -957,7 +1050,7 @@ v0.8 - 2018-07-05
   - Changed MAL_IMPLEMENTATION to MINI_AL_IMPLEMENTATION for consistency with other libraries. The old
     way is still supported for now, but you should update as it may be removed in the future.
   - API CHANGE: Replace device enumeration APIs. mal_enumerate_devices() has been replaced with
-    mal_context_get_devices(). An additional low-level device enumration API has been introduced called
+    mal_context_get_devices(). An additional low-level device enumeration API has been introduced called
     mal_context_enumerate_devices() which uses a callback to report devices.
   - API CHANGE: Rename mal_get_sample_size_in_bytes() to mal_get_bytes_per_sample() and add
     mal_get_bytes_per_frame().

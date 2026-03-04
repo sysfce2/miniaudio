@@ -15,8 +15,7 @@ Instead you would probably want to do a custom data source that handles underrun
 the ring buffer and deals with desyncs between capture and playback. In the future this example
 may be updated to make use of a more advanced data source that handles all of this.
 */
-#define MINIAUDIO_IMPLEMENTATION
-#include "../miniaudio.h"
+#include "../miniaudio.c"
 
 static ma_pcm_rb rb;
 static ma_device device;
@@ -27,6 +26,8 @@ void capture_data_callback(ma_device* pDevice, void* pFramesOut, const void* pFr
 {
     ma_result result;
     ma_uint32 framesWritten;
+
+    (void)pFramesOut;
 
     /* We need to write to the ring buffer. Need to do this in a loop. */
     framesWritten = 0;
@@ -44,7 +45,7 @@ void capture_data_callback(ma_device* pDevice, void* pFramesOut, const void* pFr
         }
 
         /* Copy the data from the capture buffer to the ring buffer. */
-        ma_copy_pcm_frames(pMappedBuffer, ma_offset_pcm_frames_const_ptr_f32(pFramesIn, framesWritten, pDevice->capture.channels), framesToWrite, pDevice->capture.format, pDevice->capture.channels);
+        ma_copy_pcm_frames(pMappedBuffer, ma_offset_pcm_frames_const_ptr_f32((const float*)pFramesIn, framesWritten, pDevice->capture.channels), framesToWrite, pDevice->capture.format, pDevice->capture.channels);
 
         result = ma_pcm_rb_commit_write(&rb, framesToWrite);
         if (result != MA_SUCCESS) {
@@ -124,9 +125,6 @@ int main(int argc, char** argv)
         printf("Failed to initialize the sound.");
         return -1;
     }
-
-    /* Make sure the sound is set to looping or else it'll stop if the ring buffer runs out of data. */
-    ma_sound_set_looping(&sound, MA_TRUE);
 
     /* Link the starting of the device and sound together. */
     ma_device_start(&device);
